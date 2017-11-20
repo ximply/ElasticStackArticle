@@ -1,6 +1,6 @@
 # [原文链接](https://www.elastic.co/blog/hot-warm-architecture-in-elasticsearch-5-x)
 
-# 译文
+# Elasticsearch 5.x 版本中的冷热节点架构（译文）
 当elasticsearch用于大量实时数据分析的场景时，我们推荐使用基于时间的索引然后使用三种不同类型的节点（Master, Hot-Node 和 Warm-Node）进行结构分层，这就是所谓的"Hot-Warm"架构。每种节点有自己的任务，下面会进行介绍。
 
 ### Master 节点
