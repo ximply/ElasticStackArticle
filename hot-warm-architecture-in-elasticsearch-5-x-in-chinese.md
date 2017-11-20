@@ -61,4 +61,60 @@ PUT /logs_2016-12-26/_settings
  ...
 ```
 
+当你确认一个所以不再承担写入以及不需要频繁搜索时，它可以从hot节点中合并到warm节点。这个可以通过更新它的索引配置："index.routing.allocation.require.box_type" : "warm" 轻而易举地完成这个操作。<br>
+Elasticsearch 会自动合并索引到warm节点。<br><br>
 
+最后，我们还可以在所有warm数据节点上开启更好的压缩配置，在elasticsearch.yml配置文件中的 index.codec: best_compression 的这个配置项可以配置。<br>
+当数据移动到warm节点后，我们可以调用 _forcemerge API 来合并分段: 虽然可以节约内存, 磁盘空间以及更少的文件句柄, 也有使用新的best_compression编码进行索引重写所带来的副作用. <br><br>
+
+当还需要分配到strong boxes时强制合并索引不是什么好办法，这些节点上的进程会优先进行I/O操作然后影响到正在进行索引的当天日志。但是medium boxes则不会有太多操作，所以这是安全的。<br>
+现在我们已经看到如何手动修改索引的分片分配，接下来让我们来看下如何使用[Curator](https://www.elastic.co/guide/en/elasticsearch/client/curator/current/installation.html)这个工具来自动处理这些事情。<br><br>
+下面的例子中我们使用curator 4.2从hot节点移动三天前的索引到warm节点：<br>
+```Java
+actions:
+  1:
+    action: allocation
+    description: "Apply shard allocation filtering rules to the specified indices"
+    options:
+      key: box_type
+      value: warm
+      allocation_type: require
+      wait_for_completion: true
+      timeout_override:
+      continue_if_exception: false
+      disable_action: false
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: logstash-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 3
+```
+最后我们可以使用curator来强制合并索引。执行优化之前要确保等待足够长的时间进行索引重新分配。你可以设置操作1中 wait_for_completion，或者修改操作2中的 unit_count 来选择4天前的索引.这样就有机会在强制合并之前完全合并。<br>
+```Java
+2:
+    action: forcemerge
+    description: "Perform a forceMerge on selected indices to 'max_num_segments' per shard"
+    options:
+      max_num_segments: 1
+      delay:
+      timeout_override: 21600 
+      continue_if_exception: false
+      disable_action: false
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: logstash-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 3
+```
+注意 timeout_override 要比默认值 21600 秒大，不过它可能会更快或者慢一点，这取决于你的配置。<br>
+从Elasticsearch 5.0开始我们还可以使用 Rollover 和 shrink api 来减少分片数量，可以以更简单高效的方式来管理基于时间的索引。你可以在这个[博客](https://www.elastic.co/blog/managing-time-based-indices-efficiently)中找到更多细节。
