@@ -116,5 +116,5 @@ actions:
       unit: days
       unit_count: 3
 ```
-注意 timeout_override 要比默认值 21600 秒大，不过它可能会更快或者慢一点，这取决于你的配置。<br>
+注意 timeout_override 要比默认值 21600 秒大，不过它可能会更快或者慢一点，这取决于你的配置。<br><br>
 从Elasticsearch 5.0开始我们还可以使用 Rollover 和 shrink api 来减少分片数量，可以以更简单高效的方式来管理基于时间的索引。你可以在这个[博客](https://www.elastic.co/blog/managing-time-based-indices-efficiently)中找到更多细节。
